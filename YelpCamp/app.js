@@ -1,71 +1,67 @@
-//Include all necessary packages
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-var seed = require('./seeds.js');
-var passport = require('passport');
-const localStrategy = require('passport-local').Strategy;
-var User = require('./models/user');
-
-//Include all necessary routes.
-var landingRouter = require('./routes/landing');
-var campgroundsRouter = require('./routes/campgrounds');
-var campgroundNew = require('./routes/campgroundNew');
-
-//Set app to use express as its main framework.
-var app = express();
-
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'ejs');
-
-//Set up development necessary packages.
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-
+//Necessary Packages
+var express        = require("express"),
+    partials       = require('express-partials'),
+    app            = express(),
+    bodyParser     = require('body-parser'),
+    mongoose       = require('mongoose'),
+    passport       = require('passport'),
+    LocalStrategy  = require('passport-local'),
+    methodOverride = require('method-override'),
+    Campground     = require('./models/campground'),
+    Comment        = require('./models/comment'),
+    User           = require('./models/user'),
+    seedDB         = require('./seeds'),
+    flash          = require('connect-flash');
+    
+var commentRoutes    = require("./routes/comments.js"),
+    campgroundRoutes = require("./routes/campgrounds"),
+    indexRoutes      = require("./routes/index.js");
+    
+//Seed the Database
+//seedDB();
+    
+    
 //Passport Configuration
 app.use(require('express-session')({
-  secret: "This is the secret",
-  resave: false,
-  saveUninitialized: false
+    secret: "Paul is adorable",
+    resave: false,
+    saveUninitialized: false
 }));
 app.use(passport.initialize());
 app.use(passport.session());
-passport.use(new localStrategy(User.postgresLocal.localStrategy));
-passport.serializeUser(User.postgresLocal.serializeUser());
-passport.deserializeUser(User.postgresLocal.deserializeUser());
-
-//Routes to Use based on url location.
-app.use('/', landingRouter);
-app.use('/campgrounds/new', campgroundNew);
-app.use('/campgrounds', campgroundsRouter);
+passport.use(new LocalStrategy(User.authenticate()));
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 
 
-// catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  next(createError(404));
+//Connect to Database
+mongoose.connect("mongodb://localhost/yelp_camp", {
+    useUnifiedTopology: true,
+    useNewUrlParser: true,
+    useFindAndModify: false
 });
 
-// error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+//Necessary Uses and Settings
+app.set('view engine', 'ejs');
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(express.static(__dirname + "/public"))
+app.use(methodOverride('_method'));
+app.use(flash());
+app.use(function(req, res, next){
+    res.locals.currentUser = req.user;
+    res.locals.error = req.flash("error");
+    res.locals.success = req.flash("success");
+    next();
+})
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
-});
 
-//Exports App.
-module.exports = app;
+//Route Specifications
+app.use("/", indexRoutes);
+app.use("/campgrounds/:id/comments", commentRoutes);
+app.use("/campgrounds", campgroundRoutes);
+
 
 //Server Listener
-app.listen(3000, function(){
-  console.log("Server is Running");
+app.listen(process.env.PORT, process.env.IP, function(){
+    console.log("Server Running!");
 });

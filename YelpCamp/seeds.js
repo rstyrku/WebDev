@@ -1,69 +1,68 @@
-//Include necessary packages for database.
-var pg = require('pg');
-var cgDB= pg.Pool({
-    user:"",
-    host: "localhost",
-    database: 'yelpcamp',
-    password:"",
-    port: "5432"
-});
-
-//Function to take care of any extra apostraphes. Necessary for PostGres queries.
-function extraAposDB(name) {
-    var split = name.split("'");
-    var final = "";
-    for(var i = 0; i < split.length; i++){
-        final += split[i];
-        if(i < split.length - 1){
-            final += "''";
-        }
-    }
-    return final;
-}
-
+var mongoose = require('mongoose'),
+    Campground = require('./models/campground'),
+    Comment = require("./models/comment");
+    
 var data = [
     {
-        name: "Cloud's Rest",
-        imgurl: 'https://californiathroughmylens.com/wp-content/uploads/2017/07/clouds-rest-20-640x427.jpg',
-        description: 'askl;d;fjhav shdfka fhkl;d jakls; jaslf hafk valfk;a sdfkl;bvajslkdfvas jlkasdjf lksajdf vaskf asl;kdfjsbvlkjabs dvkjlf;ajs dlkfnvkljasd vklfjasd fjklnva;lksdfv l;kasdfj '
+        name: "Clouds Rest",
+        image: "https://californiathroughmylens.com/wp-content/uploads/2017/07/clouds-rest-20-640x427.jpg",
+        description: "blah blah blah"
     },
     {
         name: "Desert Mesa",
-        imgurl: 'https://render.fineartamerica.com/images/rendered/default/print/8.000/5.375/break/images-medium/painted-desert-mesa-top-david-waldo.jpg',
-        description: 'askl;d;fjhav shdfka fhkl;d jakls; jaslf hafk valfk;a sdfkl;bvajslkdfvas jlkasdjf lksajdf vaskf asl;kdfjsbvlkjabs dvkjlf;ajs dlkfnvkljasd vklfjasd fjklnva;lksdfv l;kasdfj '
+        image: "https://i.pinimg.com/originals/fa/17/82/fa1782af0ecc34b7849c8a24f8385c8f.jpg",
+        description: "blah blah blah"
     },
     {
         name: "Canyon Floor",
-        imgurl: 'https://media-cdn.tripadvisor.com/media/photo-s/01/29/b8/c1/canyon-floor.jpg',
-        description: 'askl;d;fjhav shdfka fhkl;d jakls; jaslf hafk valfk;a sdfkl;bvajslkdfvas jlkasdjf lksajdf vaskf asl;kdfjsbvlkjabs dvkjlf;ajs dlkfnvkljasd vklfjasd fjklnva;lksdfv l;kasdfj '
+        image: "https://upload.wikimedia.org/wikipedia/commons/4/45/Canyon_de_Chelly_from_the_canyon_floor.jpg",
+        description: "blah blah blah"
     }
-];
-
+    ]
+    
 function seedDB(){
-    //Remove All Campgrounds
-    cgDB.query('DELETE FROM campgrounds');
-    cgDB.query('DELETE FROM comments');
-
-    //Add a few Campgrounds
-    data.forEach(function(seed){
-
-        //Generate query to input in database
-        var query = "INSERT INTO campgrounds(name, imgurl, description) VALUES ('" + extraAposDB(seed.name) + "', '" +
-            extraAposDB(seed.imgurl) + "', '" + extraAposDB(seed.description) +"');";
-        cgDB.query(query, function(err){
-            if(err){
-                console.log(err);
-            }
-            //Add a few Comments
-            query = "INSERT INTO comments(comment, campground, author) VALUES ('This Place is Great, But I wish There was Internet','" +
-                extraAposDB(seed.name) + "', 'Homer')";
-            cgDB.query(query, function(err){
+    
+    //Remove all Campgrounds
+    Campground.deleteMany({}, function(err){
+        if(err){
+            console.log(err);
+        }
+        else{
+            console.log("removed Campgrounds!");
+            
+            Comment.deleteMany({}, function(err){
                 if(err){
                     console.log(err);
                 }
+                
+                //Add Few Campgrounds
+                data.forEach(function(seed){
+                    Campground.create(seed, function(err, campground){
+                        if(err){
+                            console.log(err);
+                        }
+                        else{
+                            console.log("added a campground");
+                            Comment.create({
+                                text: "This place is great, but I wish that there was internet.",
+                                author: "Homer"
+                                }, function(err, comment){
+                                    if(err){
+                                        console.log(err);
+                                    }
+                                    else{
+                                        campground.comments.push(comment);
+                                        campground.save();
+                                        console.log("Created new Comment");
+                                    }
+                                })
+                        }
+                    })
+                })
             })
-        });
+            
+        }
     })
 }
 
-module.exports = seedDB();
+module.exports = seedDB;
